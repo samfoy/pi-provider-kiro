@@ -28,13 +28,30 @@ export interface KiroCredentials extends OAuthCredentials {
 
 export async function loginKiroBuilderID(callbacks: OAuthLoginCallbacks): Promise<OAuthCredentials> {
   // First, try to load credentials from kiro-cli
-  const { getKiroCliCredentials } = await import("./kiro-cli.js");
+  const { getKiroCliCredentials, getKiroCliCredentialsAllowExpired, saveKiroCliCredentials } = await import(
+    "./kiro-cli.js"
+  );
   const cliCreds = getKiroCliCredentials();
   if (cliCreds) {
     (callbacks as unknown as { onProgress?: (msg: string) => void }).onProgress?.(
       "Using existing kiro-cli credentials",
     );
     return cliCreds;
+  }
+
+  // Credentials expired but refresh token may still be valid — try refreshing
+  const expiredCreds = getKiroCliCredentialsAllowExpired();
+  if (expiredCreds) {
+    try {
+      (callbacks as unknown as { onProgress?: (msg: string) => void }).onProgress?.(
+        "Refreshing expired kiro-cli credentials...",
+      );
+      const refreshed = await refreshKiroTokenDirect(expiredCreds);
+      saveKiroCliCredentials(refreshed as KiroCredentials);
+      return refreshed;
+    } catch {
+      // Refresh failed, fall through to device code flow
+    }
   }
 
   // Fall back to device code flow
@@ -120,7 +137,9 @@ export async function loginKiroBuilderID(callbacks: OAuthLoginCallbacks): Promis
 const EXPIRES_BUFFER_MS = 5 * 60 * 1000;
 
 export async function refreshKiroToken(credentials: OAuthCredentials): Promise<OAuthCredentials> {
-  const { getKiroCliCredentials, saveKiroCliCredentials } = await import("./kiro-cli.js");
+  const { getKiroCliCredentials, getKiroCliCredentialsAllowExpired, saveKiroCliCredentials } = await import(
+    "./kiro-cli.js"
+  );
 
   // Layer 1: Pre-refresh check — kiro-cli may already have a fresh token,
   // avoiding a doomed network refresh with a stale token.
@@ -142,6 +161,19 @@ export async function refreshKiroToken(credentials: OAuthCredentials): Promise<O
     const retryCreds = getKiroCliCredentials();
     if (retryCreds) {
       return retryCreds;
+    }
+
+    // Layer 2.5: kiro-cli may have a newer refresh token (expired access token).
+    // Try refreshing with those credentials instead of the stale ones from auth.json.
+    const expiredCliCreds = getKiroCliCredentialsAllowExpired();
+    if (expiredCliCreds && expiredCliCreds.refresh !== credentials.refresh) {
+      try {
+        const refreshedFromCli = await refreshKiroTokenDirect(expiredCliCreds);
+        saveKiroCliCredentials(refreshedFromCli as KiroCredentials);
+        return refreshedFromCli;
+      } catch {
+        // Also failed, continue to remaining fallbacks
+      }
     }
 
     // Layer 3: Graceful degradation — our expires has a 5-min buffer, so the
