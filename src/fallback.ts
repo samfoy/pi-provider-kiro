@@ -140,18 +140,17 @@ async function tryBedrockFallback(
   const bedrockModel = getBedrockModel(model.id);
   if (!bedrockModel) return false;
 
-  const profile = resolveBedrockProfile();
-  const region = resolveBedrockRegion(bedrockModel);
-  console.warn(
-    `[pi-provider-kiro] Kiro failed (${errorMessage}), falling back to Bedrock model: ${bedrockModel.id} (profile=${profile || "default"}, region=${region})`,
-  );
-
   const bedrockOpts = buildBedrockOptions(bedrockModel, options);
   const bedrockStream = streamBedrock(bedrockModel, context, bedrockOpts);
 
   for await (const event of bedrockStream) {
     // If we already pushed a start event from kiro, skip the bedrock start
     if (event.type === "start" && gotStart) continue;
+    // If Bedrock also errors, throw so the caller can handle it — don't leak error events to the UI
+    if (event.type === "error") {
+      const msg = event.error?.errorMessage || "Unknown Bedrock error";
+      throw new Error(msg);
+    }
     // Tag events with fallback info so the UI shows which backend served the response
     if ("partial" in event && event.partial) {
       event.partial.provider = "bedrock";
