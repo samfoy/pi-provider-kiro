@@ -115,7 +115,6 @@ export async function loginKiroBuilderID(callbacks: OAuthLoginCallbacks): Promis
   throw new Error("Authorization timed out");
 }
 
-
 export async function refreshKiroToken(credentials: OAuthCredentials): Promise<OAuthCredentials> {
   const { getKiroCliCredentials, saveKiroCliCredentials, refreshViaKiroCli } = await import("./kiro-cli.js");
 

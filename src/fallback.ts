@@ -2,22 +2,20 @@
 // ABOUTME: Maps Kiro model IDs to Bedrock equivalents and proxies stream events.
 // ABOUTME: Automatically resolves AWS profile/region for Bedrock from environment or config.
 
-import type {
-  Api,
-  AssistantMessageEventStream,
-  Context,
-  Model,
-  SimpleStreamOptions,
-} from "@mariozechner/pi-ai";
+import type { Api, AssistantMessageEventStream, Context, Model, SimpleStreamOptions } from "@mariozechner/pi-ai";
 import { createAssistantMessageEventStream } from "@mariozechner/pi-ai";
-// @ts-ignore - importing from internal path
-import type { BedrockOptions } from "@mariozechner/pi-ai/dist/providers/amazon-bedrock.js";
-// @ts-ignore - importing from internal path
-import { streamBedrock } from "@mariozechner/pi-ai/dist/providers/amazon-bedrock.js";
-// @ts-ignore - importing from internal path
+// @ts-expect-error - importing from internal path
 import { MODELS } from "@mariozechner/pi-ai/dist/models.generated.js";
-// @ts-ignore - importing from internal path
-import { adjustMaxTokensForThinking, buildBaseOptions, clampReasoning } from "@mariozechner/pi-ai/dist/providers/simple-options.js";
+// @ts-expect-error - importing from internal path
+import type { BedrockOptions } from "@mariozechner/pi-ai/dist/providers/amazon-bedrock.js";
+// @ts-expect-error - importing from internal path
+import { streamBedrock } from "@mariozechner/pi-ai/dist/providers/amazon-bedrock.js";
+// @ts-expect-error - importing from internal path
+import {
+  adjustMaxTokensForThinking,
+  buildBaseOptions,
+  clampReasoning,
+} from "@mariozechner/pi-ai/dist/providers/simple-options.js";
 import { streamKiro } from "./stream.js";
 
 // Map kiro model IDs to their bedrock equivalents.
@@ -90,10 +88,7 @@ function resolveBedrockRegion(model: Model<"bedrock-converse-stream">): string {
  * Build BedrockOptions from SimpleStreamOptions, adding profile and region.
  * Mirrors what streamSimpleBedrock does internally but with profile support.
  */
-function buildBedrockOptions(
-  model: Model<"bedrock-converse-stream">,
-  options?: SimpleStreamOptions,
-): BedrockOptions {
+function buildBedrockOptions(model: Model<"bedrock-converse-stream">, options?: SimpleStreamOptions): BedrockOptions {
   const base = buildBaseOptions(model, options, undefined);
   const profile = resolveBedrockProfile();
   const region = resolveBedrockRegion(model);
@@ -181,7 +176,14 @@ function emitError(
       api: model.api,
       provider: model.provider,
       model: model.id,
-      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
       stopReason: reason,
       errorMessage,
       timestamp: Date.now(),
@@ -238,7 +240,11 @@ export function streamWithFallback(
       // --- Fallback to Bedrock ---
       const didFallback = await tryBedrockFallback(model, context, options, wrapper, errorMessage, gotStart);
       if (!didFallback) {
-        emitError(wrapper, model, `Kiro failed (${errorMessage}) and no Bedrock fallback available for model ${model.id}`);
+        emitError(
+          wrapper,
+          model,
+          `Kiro failed (${errorMessage}) and no Bedrock fallback available for model ${model.id}`,
+        );
       }
 
       wrapper.end();
@@ -271,7 +277,9 @@ export function streamWithFallback(
       wrapper.end();
     }
   })().catch(() => {
-    try { wrapper.end(); } catch {}
+    try {
+      wrapper.end();
+    } catch {}
   });
 
   return wrapper;

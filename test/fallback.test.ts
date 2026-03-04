@@ -1,10 +1,4 @@
-import type {
-  Api,
-  AssistantMessage,
-  AssistantMessageEvent,
-  Context,
-  Model,
-} from "@mariozechner/pi-ai";
+import type { Api, AssistantMessage, AssistantMessageEvent, Context, Model } from "@mariozechner/pi-ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock streamKiro and streamSimpleBedrock before importing fallback
@@ -79,7 +73,14 @@ function makeSuccessStream(text: string) {
     api: "kiro-api",
     provider: "kiro",
     model: "claude-sonnet-4-5",
-    usage: { input: 10, output: 5, cacheRead: 0, cacheWrite: 0, totalTokens: 15, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+    usage: {
+      input: 10,
+      output: 5,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 15,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
     stopReason: "stop",
     timestamp: Date.now(),
   };
@@ -102,7 +103,14 @@ function makeErrorStream(errorMsg: string) {
     api: "kiro-api",
     provider: "kiro",
     model: "claude-sonnet-4-5",
-    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+    usage: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
     stopReason: "error",
     errorMessage: errorMsg,
     timestamp: Date.now(),
@@ -122,7 +130,14 @@ function makeBedrockSuccessStream(text: string) {
     api: "bedrock-converse-stream" as Api,
     provider: "amazon-bedrock",
     model: "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    usage: { input: 10, output: 5, cacheRead: 0, cacheWrite: 0, totalTokens: 15, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+    usage: {
+      input: 10,
+      output: 5,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 15,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
     stopReason: "stop",
     timestamp: Date.now(),
   };
@@ -180,7 +195,14 @@ function makeBedrockErrorStream(errorMsg: string) {
     api: "bedrock-converse-stream" as Api,
     provider: "amazon-bedrock",
     model: "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+    usage: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
     stopReason: "error",
     errorMessage: errorMsg,
     timestamp: Date.now(),
@@ -251,7 +273,14 @@ describe("Fallback: Kiro → Bedrock", () => {
       api: "kiro-api",
       provider: "kiro",
       model: "claude-sonnet-4-5",
-      usage: { input: 10, output: 5, cacheRead: 0, cacheWrite: 0, totalTokens: 15, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      usage: {
+        input: 10,
+        output: 5,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 15,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
       stopReason: "toolUse",
       timestamp: Date.now(),
     };
@@ -330,7 +359,9 @@ describe("Fallback: Kiro → Bedrock", () => {
   });
 
   it("falls back to Bedrock when streamKiro throws an exception (auth failure)", async () => {
-    mockStreamKiro.mockReturnValueOnce(makeThrowingStream("Kiro credentials not set. Run /login kiro or install kiro-cli."));
+    mockStreamKiro.mockReturnValueOnce(
+      makeThrowingStream("Kiro credentials not set. Run /login kiro or install kiro-cli."),
+    );
     mockStreamSimpleBedrock.mockReturnValueOnce(makeBedrockSuccessStream("Hello from Bedrock"));
 
     const events = await collect(streamWithFallback(makeModel(), makeContext()));
