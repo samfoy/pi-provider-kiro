@@ -4,13 +4,13 @@
 
 import type { Api, AssistantMessageEventStream, Context, Model, SimpleStreamOptions } from "@mariozechner/pi-ai";
 import { createAssistantMessageEventStream } from "@mariozechner/pi-ai";
-// @ts-expect-error - importing from internal path
+// @ts-ignore: importing from internal path without published type definitions
 import { MODELS } from "@mariozechner/pi-ai/dist/models.generated.js";
-// @ts-expect-error - importing from internal path
+// @ts-ignore: importing from internal path without published type definitions
 import type { BedrockOptions } from "@mariozechner/pi-ai/dist/providers/amazon-bedrock.js";
-// @ts-expect-error - importing from internal path
+// @ts-ignore: importing from internal path without published type definitions
 import { streamBedrock } from "@mariozechner/pi-ai/dist/providers/amazon-bedrock.js";
-// @ts-expect-error - importing from internal path
+// @ts-ignore: importing from internal path without published type definitions
 import {
   adjustMaxTokensForThinking,
   buildBaseOptions,
