@@ -144,11 +144,12 @@ export async function refreshKiroToken(credentials: OAuthCredentials): Promise<O
       return retryCreds;
     }
 
-    // Layer 3: Graceful degradation — our expires has a 5-min buffer, so the
-    // actual AWS token may still be valid. Return it to buy time.
-    const actualExpiry = credentials.expires + EXPIRES_BUFFER_MS;
-    if (credentials.access && Date.now() < actualExpiry) {
-      return { ...credentials, expires: actualExpiry };
+    // Layer 3: Graceful degradation — return stale credentials so the stream
+    // attempt proceeds. If the token is truly expired, Kiro will reject it
+    // and streamWithFallback will route to Bedrock. Without this, pi blocks
+    // at the auth layer and the Bedrock fallback never gets a chance to run.
+    if (credentials.access) {
+      return { ...credentials, expires: Date.now() + 60_000 };
     }
 
     throw refreshError;

@@ -96,8 +96,8 @@ function tryKiroCliToken(dbPath: string, tokenKey: string, authMethod: KiroAuthM
   if (deviceResult) {
     try {
       const d = JSON.parse(JSON.parse(deviceResult)[0]?.value);
-      clientId = d.clientId || "";
-      clientSecret = d.clientSecret || "";
+      clientId = d.clientId || d.client_id || "";
+      clientSecret = d.clientSecret || d.client_secret || "";
     } catch {}
   }
   return {
