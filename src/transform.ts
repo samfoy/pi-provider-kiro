@@ -133,7 +133,7 @@ export function buildHistory(
         ...(images.length > 0 ? { images: convertImagesToKiro(images) } : {}),
       };
       if (history[history.length - 1]?.userInputMessage)
-        history.push({ assistantResponseMessage: { content: "Continue" } });
+        history.push({ assistantResponseMessage: { content: "I'll continue." } });
       history.push({ userInputMessage: uim });
     } else if (msg.role === "assistant") {
       let armContent = "";
@@ -177,7 +177,7 @@ export function buildHistory(
       }
       i = j - 1;
       if (history[history.length - 1]?.userInputMessage)
-        history.push({ assistantResponseMessage: { content: "Continue" } });
+        history.push({ assistantResponseMessage: { content: "I'll continue." } });
       history.push({
         userInputMessage: {
           content: "Tool results provided.",

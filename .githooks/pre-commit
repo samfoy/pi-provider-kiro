@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Pre-commit hook: runs CI checks (lint, typecheck, test) in a Docker container
+# matching the GitHub Actions environment (node:22 on ubuntu).
+#
+# Install: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+if ! command -v docker &>/dev/null; then
+  echo "⚠️  Docker not found — skipping pre-commit checks"
+  exit 0
+fi
+
+echo "🐳 Running CI checks in Docker (node:22)..."
+
+docker run --rm \
+  -v "$(git rev-parse --show-toplevel)":/app \
+  -w /app \
+  node:22 \
+  bash -c "npm ci --silent 2>&1 | tail -1 && npm run check && npm run lint && npm test" \
+
+echo "✅ All CI checks passed"
