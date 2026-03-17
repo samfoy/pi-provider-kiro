@@ -70,6 +70,27 @@ interface KiroToolCallState {
   input: string;
 }
 
+/**
+ * Detect responses that look like a truncated preamble to a tool call.
+ * The model output text ending with ":" or action-announcing phrases but
+ * the stream ended before the tool call was emitted — typically because
+ * thinking tokens exhausted the server-side output budget.
+ */
+function looksLikeTruncatedToolPreamble(content: AssistantMessage["content"]): boolean {
+  const textBlocks = content.filter((b): b is TextContent => b.type === "text");
+  if (textBlocks.length === 0) return false;
+  const lastText = textBlocks[textBlocks.length - 1].text.trimEnd();
+  if (!lastText) return false;
+  // Strong signal: text ends with a colon (about to show/do something)
+  if (lastText.endsWith(":")) return true;
+  // Check the tail for action-announcing patterns
+  const tail = lastText.slice(-200).toLowerCase();
+  const actionPatterns = ["let me ", "i'll ", "now ", "going to ", "need to ", "let's ", "updating ", "i will "];
+  // Pattern at the very end (last ~60 chars) suggests the model was mid-thought
+  const veryEnd = tail.slice(-60);
+  return actionPatterns.some((p) => veryEnd.includes(p));
+}
+
 export function streamKiro(
   model: Model<Api>,
   context: Context,
@@ -153,7 +174,9 @@ export function streamKiro(
             }
           if (armContent || armToolUses.length > 0) {
             if (history.length > 0 && !history[history.length - 1].userInputMessage)
-              history.push({ userInputMessage: { content: "Continue", modelId: kiroModelId, origin: "AI_EDITOR" } });
+              history.push({
+                userInputMessage: { content: "I'll continue.", modelId: kiroModelId, origin: "AI_EDITOR" },
+              });
             history.push({
               assistantResponseMessage: {
                 content: armContent,
@@ -170,7 +193,7 @@ export function streamKiro(
                 toolUseId: (m as ToolResultMessage).toolCallId,
               });
           }
-          currentContent = currentToolResults.length > 0 ? "Tool results provided." : "Continue";
+          currentContent = currentToolResults.length > 0 ? "Tool results provided." : "I'll continue.";
         } else if (firstMsg?.role === "toolResult") {
           for (const m of currentMessages)
             if (m.role === "toolResult")
@@ -205,7 +228,7 @@ export function streamKiro(
           if (imgs.length > 0) currentImages = convertImagesToKiro(imgs as ImageContent[]);
         }
         if (history.length > 0 && history[history.length - 1].userInputMessage)
-          history.push({ assistantResponseMessage: { content: "Continue" } });
+          history.push({ assistantResponseMessage: { content: "I'll continue." } });
         const request: KiroRequest = {
           conversationState: {
             chatTriggerType: "MANUAL",
@@ -487,15 +510,36 @@ export function streamKiro(
           console.warn(
             `[pi-provider-kiro] Empty response after ${maxRetries} retries — returning stopReason:"stop" to avoid agent loop stall`,
           );
+          // Exhausted all retries — force "stop" so pi doesn't auto-continue
+          // into an infinite loop.
+          output.stopReason = "stop";
+          stream.push({ type: "done", reason: "stop", message: output });
+          stream.end();
+          break;
         }
         // Use emittedToolCalls (not toolCalls.length) to avoid stopReason:"toolUse"
         // when all tool calls were skipped due to empty/unparseable input — that
         // combination (empty content + toolUse stop) causes pi's agent loop to
         // stall waiting for tool results that will never arrive.
-        if (!receivedContextUsage && emittedToolCalls === 0) {
+        if (emittedToolCalls > 0) {
+          output.stopReason = "toolUse";
+        } else if (!hasText) {
+          // Empty response (no text, no tool calls) — always treat as truncated
+          // so pi can auto-continue. Previously, receiving a contextUsage event
+          // would cause this to return "stop", making pi think the model was
+          // done and stalling the session.
+          output.stopReason = "length";
+        } else if (!receivedContextUsage) {
+          output.stopReason = "length";
+        } else if (context.tools?.length && looksLikeTruncatedToolPreamble(output.content)) {
+          // The API sent contextUsage (so the stream "completed") but the text
+          // ends with a pattern that strongly suggests the model was about to
+          // emit a tool call (e.g., "Now update the README:"). This happens
+          // when thinking tokens exhaust the server-side output budget, leaving
+          // no room for the tool call. Treat as truncated so pi auto-continues.
           output.stopReason = "length";
         } else {
-          output.stopReason = emittedToolCalls > 0 ? "toolUse" : "stop";
+          output.stopReason = "stop";
         }
         stream.push({ type: "done", reason: output.stopReason as "stop" | "toolUse", message: output });
         stream.end();
